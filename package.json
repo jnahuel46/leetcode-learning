@@ -1,11 +1,11 @@
 {
   "name": "leet-code",
   "version": "1.0.0",
-  "main": "counter.js",
+  "main": "toBeOrNotTobe.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "dev": "nodemon counter.js"  
+    "dev": "nodemon toBeOrNotTobe.js"  
   },
   "keywords": [],
   "author": "",
