@@ -1,11 +1,11 @@
 {
   "name": "leet-code",
   "version": "1.0.0",
-  "main": "toBeOrNotTobe.js",
+  "main": "anagrams.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js",
-    "dev": "nodemon toBeOrNotTobe.js"  
+    "start": "node anagrams.js",
+    "dev": "nodemon anagrams.js"  
   },
   "keywords": [],
   "author": "",
