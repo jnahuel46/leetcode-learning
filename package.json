@@ -1,11 +1,11 @@
 {
   "name": "leet-code",
   "version": "1.0.0",
-  "main": "anagrams.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node anagrams.js",
-    "dev": "nodemon anagrams.js"  
+    "start": "node index.js",
+    "dev": "nodemon index.js"  
   },
   "keywords": [],
   "author": "",
