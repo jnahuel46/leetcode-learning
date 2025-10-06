@@ -1,77 +1,96 @@
-
-// Given an integer array nums, a reducer function fn, and an initial value init, return the final result obtained by executing the fn function on each element of the array, 
-// sequentially, passing in the return value from the calculation on the preceding element.
-// This result is achieved through the following operations: val = fn(init, nums[0]), val = fn(val, nums[1]), val = fn(val, nums[2]), ...
-//  until every element in the array has been processed. The ultimate value of val is then returned.
-
-// If the length of the array is 0, the function should return init.
-
-// Please solve it without using the built-in Array.reduce method.
-
-
-
-// Example 1:
-
-// Input: 
-// nums = [1,2,3,4]
-// fn = function sum(accum, curr) { return accum + curr; }
-// init = 0
-// Output: 10
-// Explanation:
-// initially, the value is init=0.
-// (0) + nums[0] = 1
-// (1) + nums[1] = 3
-// (3) + nums[2] = 6
-// (6) + nums[3] = 10
-// The final answer is 10.
-// Example 2:
-
-// Input: 
-// nums = [1,2,3,4]
-// fn = function sum(accum, curr) { return accum + curr * curr; }
-// init = 100
-// Output: 130
-// Explanation:
-// initially, the value is init=100.
-// (100) + nums[0] * nums[0] = 101
-// (101) + nums[1] * nums[1] = 105
-// (105) + nums[2] * nums[2] = 114
-// (114) + nums[3] * nums[3] = 130
-// The final answer is 130.
-// Example 3:
-
-// Input: 
-// nums = []
-// fn = function sum(accum, curr) { return 0; }
-// init = 25
-// Output: 25
-// Explanation: For empty arrays, the answer is always init.
-
-
-// Constraints:
-
-// 0 <= nums.length <= 1000
-// 0 <= nums[i] <= 1000
-// 0 <= init <= 1000
-
 /**
- * @param {number[]} nums
- * @param {Function} fn
- * @param {number} init
- * @return {number}
+ * @param {number} x
+ * @return {boolean}
  */
-const reduce = function (nums, fn, init) {
-    let accum = init
-    for (let i = 0; i < nums.length; i++) {
-        accum = fn(accum, nums[i])
+const isPalindrome = function (x) {
+    const regularNumber = x
+    const reversedNumber = x.toString().split("").reverse().join("")
+
+    if (regularNumber === +reversedNumber) {
+        return true
     }
-    return accum
+    return false
 };
 
-const nums = [1, 2, 3, 4];
-const reducer = (accum, curr) => {
-    return accum + curr;
-}
-const init = 0
 
-console.log(reduce(nums, reducer, init))
+// A phrase is a palindrome if, after converting all uppercase letters into lowercase letters and removing all non-alphanumeric characters, it reads the same forward and backward. Alphanumeric characters include letters and numbers.
+
+// Given a string s, return true if it is a palindrome, or false otherwise.
+/**
+ * @param {string} s
+ * @return {boolean}
+ */
+const isWordPalindrome = function (s) {
+    //misma base que la de números pero con limpieza extra
+    // paso 1: limpiar la string (lowercase + quitar no alfanuméricos)
+    // paso 2: comparar string limpia con su reverso
+
+    // opción A: función auxiliar para limpiar
+    // const clean = (str) => str.toLowerCase().replace(/[^a-zA-Z0-9]/g, "");
+    // const regularWord = clean(s);
+    // const reversedWord = clean(s.split("").reverse().join(""));
+    const cleaned = s.toLowerCase().replace(/[^a-zA-Z0-9]/g, "");
+    const reversed = cleaned.split("").reverse().join("");
+
+    return cleaned === reversed;
+};
+const input = "A man, a plan a canal, Panama";
+const dos = "ab_a"
+
+
+
+//Now a tricky onw, you have to return the the number of the index position
+//if the position of the srtring to convert the string in a palindrome
+// string: bcbc
+//Example Either remove 'b' at index  or 'c' at index .
+
+const removeIndex = (s) => {
+    const isPalinHelper = (str, left, right) => {
+        while (left < right) {
+            if (str[left] !== str[right]) return false;
+            left++;
+            right--;
+        }
+        return true;
+    };
+
+    let left = 0;
+    let right = s.length - 1;
+
+    while (left < right) {
+        if (s[left] !== s[right]) {
+            if (isPalinHelper(s, left + 1, right)) {
+                return left;
+            }
+            if (isPalinHelper(s, left, right - 1)) {
+                return right;
+            }
+            return -1;
+        }
+        left++;
+        right--;
+    }
+    return -1; 
+}
+
+const s = "aab"
+
+console.log(removeIndex(s))
+
+const isPalindromeSimple = (example) => {
+    let left = 0;  
+    let right = example.length - 1;
+
+    while (left < right) {
+        if (example[left] !== example[right]) {
+            return false;
+        }
+        left++;
+        right--;
+    }
+    return true;
+}
+
+const example = "aabaa"
+
+console.log(isPalindromeSimple(example))
