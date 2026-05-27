@@ -24,7 +24,7 @@ while (left < right) {
 }
 ```
 
-**Ejemplos:** Two Sum II, Container With Most Water, Valid Palindrome, 3Sum
+**Ejemplos:** Two Sum II, Container With Most Water, Valid Palindrome, 3Sum, palindroms.js
 
 ---
 
@@ -72,7 +72,7 @@ for (const x of arr) {
 }
 ```
 
-**Ejemplos:** Two Sum, Anagram Groups, Valid Anagram, Contains Duplicate
+**Ejemplos:** Two Sum, Anagram Groups, Valid Anagram, Contains Duplicate, anagrams.js
 
 ---
 
@@ -151,7 +151,7 @@ for (let i = 1; i <= n; i++) {
 }
 ```
 
-**Ejemplos:** Fibonacci, Climbing Stairs, Coin Change, Longest Common Subsequence
+**Ejemplos:** Fibonacci, Climbing Stairs, Coin Change, Longest Common Subsequence, memoize.js
 
 ---
 
@@ -253,6 +253,145 @@ for (const x of arr) prefix.push(prefix.at(-1) + x);
 
 ---
 
+## 11. Closures & Estado Privado
+
+**Cuándo usarlo:** mantener estado interno entre llamadas, funciones que recuerdan su contexto, funciones ejecutadas una sola vez.
+
+**Señales:**
+- "create a counter"
+- "call function only once"
+- Estado encapsulado sin variables globales
+- Factory functions que generan funciones con comportamiento personalizado
+
+**Template:**
+```js
+function factory(init) {
+  let state = init;
+  return {
+    increment: () => ++state,
+    decrement: () => --state,
+    reset: () => (state = init),
+  };
+}
+
+// Ejecutar solo una vez
+function once(fn) {
+  let called = false;
+  return (...args) => {
+    if (called) return undefined;
+    called = true;
+    return fn(...args);
+  };
+}
+```
+
+**Ejemplos:** counter.js, counter2.js, callOnce.js
+
+---
+
+## 12. Higher-Order Functions
+
+**Cuándo usarlo:** transformar, filtrar o acumular arrays sin usar built-ins; componer funciones; cachear resultados.
+
+**Señales:**
+- "implement map/filter/reduce without built-in"
+- "compose functions" / "pipe"
+- "memoize a function"
+- Recibir o retornar funciones como parámetro
+
+**Templates:**
+```js
+// Reduce manual
+function reduce(nums, fn, init) {
+  let acc = init;
+  for (const x of nums) acc = fn(acc, x);
+  return acc;
+}
+
+// Composición (right-to-left)
+const compose = (fns) => (x) => fns.reduceRight((v, f) => f(v), x);
+
+// Memoize con Map
+function memoize(fn) {
+  const cache = new Map();
+  return (...args) => {
+    const key = JSON.stringify(args);
+    if (!cache.has(key)) cache.set(key, fn(...args));
+    return cache.get(key);
+  };
+}
+```
+
+**Nota:** `memoize` es la base del enfoque **top-down** de Dynamic Programming (sección 6).
+
+**Ejemplos:** reduce.js, filterElementsInTheArray.js, functionComposition.js, memoize.js, argsLength.js, toBeOrNotTobe.js
+
+---
+
+## 13. Promises / Async
+
+**Cuándo usarlo:** operaciones asíncronas, esperar múltiples promesas, simular delays con timers.
+
+**Señales:**
+- "return a promise that resolves after X ms"
+- "sum/combine the result of two promises"
+- Problemas con `async/await` o `Promise.all`
+
+**Templates:**
+```js
+// Sleep / delay
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Combinar promesas secuencialmente
+const addTwoPromises = async (p1, p2) => (await p1) + (await p2);
+
+// Combinar en paralelo (más eficiente)
+const addParallel = async (p1, p2) => {
+  const [a, b] = await Promise.all([p1, p2]);
+  return a + b;
+};
+```
+
+**Ejemplos:** sleepPromise.js, addTwoPromises.js
+
+---
+
+## Prioridad para entrevistas Senior (JS / Fullstack)
+
+### Tier 1 — Siempre aparecen
+Optimizá tu tiempo acá primero.
+
+| Grupo | Sección |
+|---|---|
+| Hash Map / Set | #3 |
+| Two Pointers | #1 |
+| Sliding Window | #2 |
+| BFS / DFS | #7 |
+| Closures & Estado Privado | #11 |
+| Higher-Order Functions | #12 |
+| Promises / Async | #13 |
+
+### Tier 2 — Comunes, vale la pena saber
+Aparecen bastante, especialmente en empresas grandes.
+
+| Grupo | Sección | Nota |
+|---|---|---|
+| Binary Search | #4 | Más frecuente en variantes (rotado, límites) |
+| Dynamic Programming | #6 | Obligatorio para FAANG/tier 1 |
+| Stack | #8 | Valid Parentheses aparece casi siempre |
+| Backtracking | #5 | Más común en roles de algoritmos puros |
+
+### Tier 3 — Probablemente nunca te los tomen
+No vale invertir tiempo hasta dominar los tiers anteriores.
+
+| Grupo | Sección | Por qué es raro |
+|---|---|---|
+| Heap / Priority Queue | #9 | Sin heap nativo en JS; solo en roles de algoritmos |
+| Prefix Sum | #10 | Muy específico; aparece en competitive programming |
+| Monotonic Stack (avanzado) | #8 | Valid Parentheses sí — histogramas y temperaturas, no |
+
+---
+
 ## Guía de decisión rápida
 
 ```
@@ -281,4 +420,13 @@ for (const x of arr) prefix.push(prefix.at(-1) + x);
 
 ¿Top-K / Kth elemento?
   └─ Heap
+
+¿Mantener estado entre llamadas / ejecutar solo una vez?
+  └─ Closures
+
+¿Implementar map/filter/reduce / componer / cachear?
+  └─ Higher-Order Functions
+
+¿Operaciones asíncronas / timers / combinar promesas?
+  └─ Promises / Async
 ```
