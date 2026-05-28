@@ -27,32 +27,46 @@
  * @return {Generator<number>}
  */
 
-// El asterisco después de "function" es lo que la convierte en una función generadora.
-// Una función generadora NO ejecuta su cuerpo al ser llamada — en cambio, devuelve
-// un objeto Generator que podés controlar manualmente con .next().
+// "function*" (con asterisco) define una función generadora.
+// A diferencia de una función normal, llamarla NO ejecuta su cuerpo de inmediato:
+// devuelve un objeto Generator que actúa como un iterador pausable.
+// El cuerpo solo corre cuando llamás .next(), y se pausa en cada "yield".
 var fibGenerator = function* () {
-    let prev = 0, curr = 1;
+    // Fibonacci arranca en 0 y 1. Estas dos variables representan la "ventana deslizante"
+    // de los dos últimos valores: siempre necesitamos los dos anteriores para calcular el siguiente.
+    let current = 0;
+    let newValue = 1;
 
-    // while(true) no congela el programa porque "yield" pausa la ejecución.
-    // El cuerpo solo avanza cuando alguien llama .next() desde afuera.
+    // El while(true) no es un bug ni un loop infinito descontrolado:
+    // el generador no avanza solo. Cada iteración solo ocurre cuando alguien llama .next()
+    // desde afuera, por lo que el loop es seguro — simplemente dice "podés pedir tantos valores como quieras".
     while (true) {
-        // yield pausa la función acá y devuelve "prev" como el .value del .next().
-        // La próxima vez que se llame .next(), la ejecución retoma justo después de este yield.
-        yield prev;
+        // yield pausa la ejecución y "entrega" current al llamador como { value: current, done: false }.
+        // La función queda congelada en esta línea hasta el próximo .next().
+        yield current;
 
-        // Actualiza ambas variables en una línea: prev pasa a ser curr,
-        // y curr pasa a ser la suma de los dos anteriores.
-        [prev, curr] = [curr, prev + curr];
+        // Al reanudar, calculamos el siguiente número de Fibonacci (suma de los dos anteriores)
+        // antes de pisarlos, porque si no perderíamos el valor de current.
+        let newNextValue = current + newValue;
+
+        // Avanzamos la ventana: el "anterior" pasa a ser el "actual" y el nuevo sum pasa a ser el "próximo".
+        // Esto produce la secuencia: 0,1 → 1,1 → 1,2 → 2,3 → 3,5 ...
+        // (por eso el 1 aparece dos veces: primero como newValue, luego como current)
+        current = newValue;
+        newValue = newNextValue;
     }
 };
 
-// fibGenerator() devuelve un objeto Generator — la función no corre todavía.
+// Llamar fibGenerator() crea el objeto Generator pero NO ejecuta nada todavía.
+// El cuerpo de la función está "en pausa" antes de la primera línea.
 const gen = fibGenerator();
 
-// Cada .next() reanuda la función hasta el próximo yield y devuelve { value, done }.
+// Cada .next() reanuda la función desde donde se pausó, corre hasta el próximo yield,
+// y devuelve { value: <lo que se yieldeó>, done: false }.
+// Cuando la función termina (no hay más yields), done pasa a true.
 console.log(gen.next().value) // 0  → primer yield
 console.log(gen.next().value) // 1  → segundo yield
-console.log(gen.next().value) // 1  → tercer yield
+console.log(gen.next().value) // 1  → tercer yield  (el 1 se repite, ver nota del swap arriba)
 console.log(gen.next().value) // 2  → cuarto yield
 console.log(gen.next().value) // 3  → quinto yield
 // Constraints:
