@@ -72,3 +72,28 @@ console.log(gen.next().value) // 3  → quinto yield
 // Constraints:
 
 // 0 <= callCount <= 50
+
+
+//fibGenerator 2
+/**
+ * @param {number} n
+ * @return {number}
+ *  0, 1, 1, 2, 3, 5, 8, 13,
+ Input: n = 4
+Output: 3
+Explanation: F(4) = F(3) + F(2) = 2 + 1 = 3.
+ */
+var fib = function (n) {
+    let n1 = 0;
+    let n2 = 1;
+    let next;
+
+    for (let i = 0; i < n; i++) {
+        next = n1 + n2;
+        n1 = n2;
+        n2 = next;
+    }
+    return n1;
+};
+
+console.log(fib(4));
