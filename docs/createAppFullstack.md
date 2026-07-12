@@ -378,11 +378,44 @@ Add the query param handling in the controller too.
 
 ---
 
-## Ejemplo completo de challenge: Task Manager
+## Ejemplo completo de challenge: Task Manager (NestJS + Prisma)
 
 ### El enunciado típico
 
 > "Construí una aplicación de gestión de tareas. El usuario puede ver una lista de tareas, crear nuevas, marcarlas como completadas y eliminarlas."
+
+### Setup mínimo de Prisma dentro de NestJS
+
+```bash
+npm install prisma @prisma/client
+npx prisma init --datasource-provider sqlite
+```
+
+`prisma/schema.prisma`:
+```prisma
+model Task {
+  id        Int      @id @default(autoincrement())
+  title     String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+```
+
+```bash
+npx prisma migrate dev --name init
+```
+
+`PrismaService` (envolvé el `PrismaClient` como provider para poder inyectarlo):
+```typescript
+@Injectable()
+export class PrismaService extends PrismaClient implements OnModuleInit {
+  async onModuleInit() {
+    await this.$connect();
+  }
+}
+```
+
+Registralo en un `PrismaModule` con `exports: [PrismaService]` e importalo donde lo necesites.
 
 ### Cómo atacarlo — orden de ejecución
 
@@ -402,11 +435,12 @@ DELETE /tasks/:id       → 204 No Content
 
 Orden de construcción:
 1. Levantar NestJS con el setup mínimo
-2. Crear el módulo tasks con Entity + Service + Controller
-3. Verificar que los endpoints responden (con curl o Postman)
-4. Levantar React Vite
-5. Conectar frontend al backend
-6. Hacer funcionar el happy path completo
+2. Definir el schema de Prisma y correr la migración
+3. Crear el módulo tasks con Service (PrismaService) + Controller
+4. Verificar que los endpoints responden (con curl o Postman)
+5. Levantar React Vite
+6. Conectar frontend al backend
+7. Hacer funcionar el happy path completo
 
 **Fase 2 (con IA): Iteraciones**
 
@@ -428,9 +462,8 @@ findAll(@Query('status') status?: 'pending' | 'done') {
 
 // Service
 findAll(status?: string) {
-  if (status === 'pending') return this.repo.findBy({ completed: false });
-  if (status === 'done') return this.repo.findBy({ completed: true });
-  return this.repo.find();
+  const completed = status === 'pending' ? false : status === 'done' ? true : undefined;
+  return this.prisma.task.findMany({ where: { completed } });
 }
 ```
 
@@ -443,12 +476,13 @@ Lo que cambia en el frontend: tres botones (Todas / Pendientes / Completadas) qu
 *"Las tareas ahora tienen prioridad: low, medium, high."*
 
 Lo que cambia:
-- Agregar `priority: 'low' | 'medium' | 'high'` a la Entity
+- Agregar `priority String @default("medium")` al modelo `Task` en `schema.prisma`
+- Correr `npx prisma migrate dev --name add_priority`
 - Agregar al CreateTaskDto con `@IsIn(['low', 'medium', 'high'])`
 - En el frontend: un select en el form
 
 Cómo decirlo en voz alta:
-*"Voy a agregar la columna a la entity. Con `synchronize: true` TypeORM actualiza la tabla automáticamente, así que no necesito correr una migración en este entorno."*
+*"Voy a agregar el campo al schema de Prisma y correr una migración. A diferencia de un `synchronize: true`, Prisma me obliga a nombrar la migración explícitamente, lo cual está bueno para dejar un historial claro de cambios de schema."*
 
 ---
 
@@ -458,21 +492,19 @@ Cómo decirlo en voz alta:
 
 ```typescript
 findAll() {
-  return this.repo.find({
-    order: {
-      priority: 'DESC',   // high > medium > low alfabéticamente no funciona
-    }
+  return this.prisma.task.findMany({
+    orderBy: { priority: 'desc' },   // high > medium > low alfabéticamente no funciona
   });
 }
 ```
 
-Acá hay un gotcha: `high/medium/low` ordenados alfabéticamente no dan el resultado correcto. La respuesta senior es mencionarlo:
+Acá hay un gotcha: `high/medium/low` ordenados alfabéticamente no dan el resultado correcto (`orderBy` de Prisma ordena por el string tal cual). La respuesta senior es mencionarlo:
 
-*"Ordenar por el string directamente no va a funcionar porque alfabéticamente 'low' viene antes que 'medium'. Tenemos dos opciones: guardar un número de prioridad (1/2/3) o hacer el ordenamiento en el servicio en memoria. Para este challenge lo hago en memoria para no cambiar el schema."*
+*"Ordenar por el string directamente no va a funcionar porque alfabéticamente 'low' viene antes que 'medium'. Tenemos dos opciones: guardar un número de prioridad (1/2/3) en el schema o hacer el ordenamiento en el servicio en memoria. Para este challenge lo hago en memoria para no cambiar el schema."*
 
 ```typescript
 const priorityOrder = { high: 3, medium: 2, low: 1 };
-const tasks = await this.repo.find();
+const tasks = await this.prisma.task.findMany();
 return tasks.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
 ```
 
@@ -484,14 +516,14 @@ return tasks.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority
 
 Backend:
 ```typescript
-// Con TypeORM y Like
-import { Like } from 'typeorm';
-
 findAll(search?: string) {
-  if (search) return this.repo.findBy({ title: Like(`%${search}%`) });
-  return this.repo.find();
+  return this.prisma.task.findMany({
+    where: search ? { title: { contains: search } } : undefined,
+  });
 }
 ```
+
+> En Postgres podés sumar `mode: 'insensitive'` dentro del `contains` para case-insensitive. SQLite ya es case-insensitive por defecto para ASCII.
 
 Frontend: input controlado con debounce de 300ms para no hacer un request por cada tecla.
 
@@ -503,9 +535,151 @@ Frontend: input controlado con debounce de 300ms para no hacer un request por ca
 
 Esto es un cambio de schema. Cómo responder:
 
-*"Esto implica agregar una relación ManyToOne entre Task y User. Voy a necesitar una entidad User, modificar Task para agregar el userId, y cambiar todos los endpoints para filtrar por usuario. ¿Querés que agregue autenticación real o simulamos el userId como un header por ahora para mantener el foco en la relación de datos?"*
+*"Esto implica agregar una relación entre Task y User en el schema de Prisma. Voy a necesitar un modelo User, agregar `userId Int` y una relación `@relation` en Task, correr la migración, y cambiar todos los endpoints para filtrar por usuario (`where: { userId }`). ¿Querés que agregue autenticación real o simulamos el userId como un header por ahora para mantener el foco en la relación de datos?"*
+
+```prisma
+model User {
+  id    Int    @id @default(autoincrement())
+  tasks Task[]
+}
+
+model Task {
+  id       Int      @id @default(autoincrement())
+  title    String
+  userId   Int
+  user     User     @relation(fields: [userId], references: [id])
+}
+```
 
 Esa pregunta muestra pensamiento senior: identificás el impacto, proponés una solución pragmática y pedís claridad antes de escribir código.
+
+---
+
+## Ejemplo completo de challenge: Task Manager (Express + TS + Prisma)
+
+Mismo enunciado, mismos endpoints, mismas iteraciones — pero con el service en `src/routes/tasks.ts` hablando directo con `PrismaClient` en vez de un array en memoria, y sin el ceremonial de Módulo/Controller/DTO de NestJS.
+
+### Setup
+
+```bash
+mkdir backend && cd backend
+npm init -y
+npm install express cors prisma @prisma/client
+npm install -D typescript ts-node nodemon @types/express @types/cors @types/node
+npx tsc --init
+npx prisma init --datasource-provider sqlite
+```
+
+`prisma/schema.prisma`:
+```prisma
+model Task {
+  id        Int      @id @default(autoincrement())
+  title     String
+  completed Boolean  @default(false)
+  priority  String   @default("medium")
+  createdAt DateTime @default(now())
+}
+```
+
+```bash
+npx prisma migrate dev --name init
+```
+
+Un solo `PrismaClient` compartido, instanciado una vez (`src/prisma.ts`):
+```typescript
+import { PrismaClient } from '@prisma/client';
+export const prisma = new PrismaClient();
+```
+
+### Service con Prisma — reemplaza el array en memoria
+
+`src/services/tasks.service.ts`:
+```typescript
+import { prisma } from '../prisma';
+
+export const findAll = (status?: 'pending' | 'done') => {
+  const completed = status === 'pending' ? false : status === 'done' ? true : undefined;
+  return prisma.task.findMany({ where: { completed } });
+};
+
+export const create = (dto: { title: string }) =>
+  prisma.task.create({ data: dto });
+
+export const update = (id: number, dto: { completed?: boolean; priority?: string }) =>
+  prisma.task.update({ where: { id }, data: dto });
+
+export const remove = (id: number) =>
+  prisma.task.delete({ where: { id } });
+```
+
+`src/routes/tasks.ts` mantiene la misma forma que el patrón base de Express (ver arriba), solo que ahora `tasksService` es async — agregá `await` en cada handler:
+```typescript
+router.get('/', async (req, res) => {
+  res.json(await tasksService.findAll(req.query.status as 'pending' | 'done'));
+});
+
+router.patch('/:id', async (req, res) => {
+  try {
+    res.json(await tasksService.update(Number(req.params.id), req.body));
+  } catch {
+    res.status(404).json({ message: 'Not found' });
+  }
+});
+```
+
+> Con Prisma, `update`/`delete` sobre un id inexistente tiran una excepción (`P2025`) en vez de devolver `undefined` como en el array en memoria — por eso el `try/catch`.
+
+### Iteraciones — igual que en NestJS, cambia solo la sintaxis
+
+**Iteración 1 (filtros):** ya resuelto arriba con el `where: { completed }`.
+
+**Iteración 2 (prioridad):** agregar `priority` al schema (ya está arriba) + migración + validar en la ruta que `req.body.priority` sea uno de `['low', 'medium', 'high']` a mano, ya que Express no tiene `class-validator` — podés usar `zod` si querés algo declarativo:
+```bash
+npm install zod
+```
+```typescript
+import { z } from 'zod';
+
+const createTaskSchema = z.object({
+  title: z.string().min(1),
+  priority: z.enum(['low', 'medium', 'high']).optional(),
+});
+```
+
+**Iteración 3 (ordenamiento):**
+```typescript
+const priorityOrder = { high: 3, medium: 2, low: 1 };
+export const findAll = async () => {
+  const tasks = await prisma.task.findMany();
+  return tasks.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
+};
+```
+
+**Iteración 4 (búsqueda):**
+```typescript
+export const findAll = (search?: string) =>
+  prisma.task.findMany({ where: search ? { title: { contains: search } } : undefined });
+```
+
+**Iteración 5 (multiusuario):** mismo cambio de schema que en la versión NestJS (modelo `User` + `userId` en `Task`), pero acá el "middleware" de autenticación simulado es una función de Express en vez de un Guard:
+```typescript
+const fakeAuth = (req, res, next) => {
+  req.userId = Number(req.headers['x-user-id']);
+  next();
+};
+router.use(fakeAuth);
+```
+
+Decilo en voz alta igual que en NestJS: *"Simulo el usuario con un header para no perder tiempo en auth real y enfocarme en la relación de datos."*
+
+### Express+Prisma vs NestJS+Prisma — cuándo elegir cada uno
+
+| | Express + Prisma | NestJS + Prisma |
+|---|---|---|
+| Boilerplate | Mínimo — funciones sueltas | Módulo/Controller/Service/DTO por feature |
+| Validación de input | Manual o con `zod` | `class-validator` + `ValidationPipe` global |
+| Inyección de dependencias | No — importás `prisma` directo | Sí — `PrismaService` inyectado |
+| Señal que da | "Voy rápido y entiendo los fundamentos" | "Conozco patrones enterprise" |
 
 ---
 
